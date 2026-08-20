@@ -150,4 +150,133 @@ export const facilities = [
   operator: "Coptic Hospital",
   source: "AfyaLink / Reference data",
 },
+
+  {
+    id: 6,
+    name: "M.P. Shah Hospital",
+    type: "Hospital",
+    description:
+      "A 217-bed hospital in Nairobi providing specialist, inpatient, outpatient and diagnostic healthcare services.",
+    address: "Shivachi Road, Parklands, Nairobi",
+    county: "Nairobi",
+    latitude: -1.2636,
+    longitude: 36.8172,
+
+    services: [
+      "Emergency",
+      "Outpatient",
+      "Inpatient",
+      "Laboratory",
+      "Pharmacy",
+      "Radiology",
+      "Specialist Care",
+      "Dental",
+      "Children's Hospital",
+    ],
+
+    openingHours: {
+      monday: "Open 24 hours",
+      tuesday: "Open 24 hours",
+      wednesday: "Open 24 hours",
+      thursday: "Open 24 hours",
+      friday: "Open 24 hours",
+      saturday: "Open 24 hours",
+      sunday: "Open 24 hours",
+    },
+
+    phone: "+254 111 000600",
+
+    emergency: true,
+
+    wheelchair: "yes",
+
+    operator: "M.P. Shah Hospital",
+
+    source: "AfyaLink / Reference data",
+  },
+
+  {
+    id: 7,
+    name: "Gertrude's Children's Hospital",
+    type: "Children's Hospital",
+    description:
+      "A specialist children's hospital providing paediatric healthcare services in Nairobi.",
+    address: "34 Muthaiga Road, Muthaiga, Nairobi",
+    county: "Nairobi",
+    latitude: -1.2505,
+    longitude: 36.8332,
+
+    services: [
+      "Emergency",
+      "Paediatrics",
+      "Outpatient",
+      "Inpatient",
+      "Laboratory",
+      "Pharmacy",
+      "Specialist Care",
+      "Maternity",
+    ],
+
+    openingHours: {
+      monday: "Open 24 hours",
+      tuesday: "Open 24 hours",
+      wednesday: "Open 24 hours",
+      thursday: "Open 24 hours",
+      friday: "Open 24 hours",
+      saturday: "Open 24 hours",
+      sunday: "Open 24 hours",
+    },
+
+    phone: "+254 709 529000",
+
+    emergency: true,
+
+    wheelchair: "yes",
+
+    operator: "Gertrude's Children's Hospital",
+
+    source: "AfyaLink / Reference data",
+  },
+
+  {
+    id: 8,
+    name: "AAR Hospital",
+    type: "Hospital",
+    description:
+      "A private hospital in Nairobi providing medical, diagnostic and emergency healthcare services.",
+    address: "Nairobi, Kenya",
+    county: "Nairobi",
+    latitude: -1.2309,
+    longitude: 36.8064,
+
+    services: [
+      "Emergency",
+      "Outpatient",
+      "Inpatient",
+      "Laboratory",
+      "Pharmacy",
+      "Radiology",
+      "Specialist Care",
+    ],
+
+    openingHours: {
+      monday: "Open 24 hours",
+      tuesday: "Open 24 hours",
+      wednesday: "Open 24 hours",
+      thursday: "Open 24 hours",
+      friday: "Open 24 hours",
+      saturday: "Open 24 hours",
+      sunday: "Open 24 hours",
+    },
+
+    phone: "+254 111 049900",
+
+    emergency: true,
+
+    wheelchair: "yes",
+
+    operator: "AAR Hospital",
+
+    source: "AfyaLink / Reference data",
+  },
 ];
