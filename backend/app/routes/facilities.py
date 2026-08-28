@@ -1,3 +1,8 @@
+import json
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
+
 from flask import Blueprint, jsonify, request
 
 from app.extensions import db
@@ -9,6 +14,87 @@ facilities_bp = Blueprint(
     __name__,
     url_prefix="/api/facilities"
 )
+
+
+OVERPASS_URLS = (
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+)
+MAX_NEARBY_RADIUS_METERS = 20000
+
+
+def validate_nearby_query():
+    try:
+        latitude = float(request.args["latitude"])
+        longitude = float(request.args["longitude"])
+        radius = int(request.args.get("radius", 10000))
+    except (KeyError, TypeError, ValueError):
+        return None, jsonify({
+            "error": "latitude, longitude, and radius must be valid numbers"
+        }), 400
+
+    if not -90 <= latitude <= 90 or not -180 <= longitude <= 180:
+        return None, jsonify({
+            "error": "latitude or longitude is outside its valid range"
+        }), 400
+
+    if not 100 <= radius <= MAX_NEARBY_RADIUS_METERS:
+        return None, jsonify({
+            "error": (
+                "radius must be between 100 and "
+                f"{MAX_NEARBY_RADIUS_METERS} metres"
+            )
+        }), 400
+
+    return (latitude, longitude, radius), None, None
+
+
+def build_overpass_query(latitude, longitude, radius):
+    return f"""
+        [out:json][timeout:20];
+        (
+          nwr(around:{radius},{latitude},{longitude})[\"amenity\"=\"hospital\"];
+          nwr(around:{radius},{latitude},{longitude})[\"amenity\"=\"clinic\"];
+          nwr(around:{radius},{latitude},{longitude})[\"amenity\"=\"doctors\"];
+          nwr(around:{radius},{latitude},{longitude})[\"amenity\"=\"pharmacy\"];
+          nwr(around:{radius},{latitude},{longitude})[\"healthcare\"];
+        );
+        out center tags;
+    """
+
+
+@facilities_bp.get("/nearby")
+def get_nearby_facilities():
+    coordinates, error_response, status = validate_nearby_query()
+
+    if error_response:
+        return error_response, status
+
+    latitude, longitude, radius = coordinates
+    payload = urlencode({
+        "data": build_overpass_query(latitude, longitude, radius)
+    }).encode("utf-8")
+    for url in OVERPASS_URLS:
+        overpass_request = Request(
+            url,
+            data=payload,
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+                "User-Agent": "AfyaLink/1.0",
+            },
+            method="POST",
+        )
+
+        try:
+            with urlopen(overpass_request, timeout=20) as response:
+                data = json.loads(response.read().decode("utf-8"))
+                return jsonify(data), 200
+        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError):
+            continue
+
+    return jsonify({
+        "error": "Nearby facility search is temporarily unavailable"
+    }), 503
 
 
 def validate_facility_data(data, partial=False):

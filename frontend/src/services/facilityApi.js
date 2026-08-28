@@ -1,3 +1,7 @@
+import {
+  calculateDistance,
+} from "../utils/distance";
+
 const API_URL = (
   import.meta.env.VITE_API_URL ||
   "http://127.0.0.1:5000/api"
@@ -202,39 +206,70 @@ export const getNearbyFacilities =
     longitude,
     radius = 10000,
   }) => {
-
-    const {
-      searchOpenStreetMapFacilities,
-    } = await import(
-      "./openStreetMapApi"
-    );
-
     const {
       normalizeFacilities,
     } = await import(
       "./facilityNormalizer"
     );
 
+    const query = new URLSearchParams({
+      latitude: String(latitude),
+      longitude: String(longitude),
+      radius: String(radius),
+    });
+
     try {
-
-      const response =
-        await searchOpenStreetMapFacilities({
-          latitude,
-          longitude,
-          radius,
-        });
-
-      return normalizeFacilities(
-        response.elements
+      const response = await request(
+        `/facilities/nearby?${query}`
       );
 
+      return normalizeFacilities(
+        response.elements || []
+      );
     } catch (error) {
-
-      console.error(
-        "OSM facility search failed:",
+      // A direct lookup keeps nearby search available while a backend
+      // deployment is catching up or a proxy request is unavailable.
+      console.warn(
+        "Nearby API search failed; trying OpenStreetMap directly.",
         error
       );
 
-      return [];
+      try {
+        const {
+          searchOpenStreetMapFacilities,
+        } = await import(
+          "./openStreetMapApi"
+        );
+
+        const directResponse =
+          await searchOpenStreetMapFacilities({
+            latitude,
+            longitude,
+            radius,
+          });
+
+        return normalizeFacilities(
+          directResponse.elements || []
+        );
+      } catch (osmError) {
+        console.warn(
+          "Direct OpenStreetMap search failed; using AfyaLink facilities.",
+          osmError
+        );
+
+        const facilities = await getFacilities();
+        const radiusInKm = radius / 1000;
+
+        return facilities.filter((facility) =>
+          Number.isFinite(facility.latitude) &&
+          Number.isFinite(facility.longitude) &&
+          calculateDistance(
+            latitude,
+            longitude,
+            facility.latitude,
+            facility.longitude
+          ) <= radiusInKm
+        );
+      }
     }
   };

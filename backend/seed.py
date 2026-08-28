@@ -404,6 +404,116 @@ FACILITIES = [
             "Pediatrics",
         ],
     },
+    {
+        "name": "Karen Hospital",
+        "type": "Hospital",
+        "description": (
+            "A private hospital providing outpatient, emergency "
+            "and specialist healthcare services."
+        ),
+        "address": "Langata Road, Karen, Nairobi",
+        "county": "Nairobi",
+        "phone": "+254 703 047000",
+        "latitude": -1.3187,
+        "longitude": 36.7076,
+        "opening_hours": {
+            "monday": "Open 24 hours",
+            "tuesday": "Open 24 hours",
+            "wednesday": "Open 24 hours",
+            "thursday": "Open 24 hours",
+            "friday": "Open 24 hours",
+            "saturday": "Open 24 hours",
+            "sunday": "Open 24 hours",
+        },
+        "emergency": True,
+        "wheelchair": "yes",
+        "operator": "Karen Hospital",
+        "source": "AfyaLink",
+        "services": [
+            "Emergency Care",
+            "Outpatient Care",
+            "Inpatient Care",
+            "Laboratory",
+            "Pharmacy",
+            "Maternity",
+            "Radiology",
+            "Surgery",
+            "Pediatrics",
+        ],
+    },
+    {
+        "name": "The Nairobi Women's Hospital - Hurlingham",
+        "type": "Hospital",
+        "description": (
+            "A healthcare facility offering women and family-focused "
+            "medical services."
+        ),
+        "address": "Argwings Kodhek Road, Hurlingham, Nairobi",
+        "county": "Nairobi",
+        "phone": "+254 703 049000",
+        "latitude": -1.2927,
+        "longitude": 36.8039,
+        "opening_hours": {
+            "monday": "Open 24 hours",
+            "tuesday": "Open 24 hours",
+            "wednesday": "Open 24 hours",
+            "thursday": "Open 24 hours",
+            "friday": "Open 24 hours",
+            "saturday": "Open 24 hours",
+            "sunday": "Open 24 hours",
+        },
+        "emergency": True,
+        "wheelchair": "yes",
+        "operator": "The Nairobi Women's Hospital",
+        "source": "AfyaLink",
+        "services": [
+            "Emergency Care",
+            "Outpatient Care",
+            "Inpatient Care",
+            "Laboratory",
+            "Pharmacy",
+            "Maternity",
+            "Surgery",
+            "Pediatrics",
+        ],
+    },
+    {
+        "name": "Avenue Hospital - Parklands",
+        "type": "Hospital",
+        "description": (
+            "A private healthcare facility providing outpatient, "
+            "inpatient and specialist medical care."
+        ),
+        "address": "1st Parklands Avenue, Nairobi",
+        "county": "Nairobi",
+        "phone": "+254 709 336000",
+        "latitude": -1.2628,
+        "longitude": 36.8226,
+        "opening_hours": {
+            "monday": "Open 24 hours",
+            "tuesday": "Open 24 hours",
+            "wednesday": "Open 24 hours",
+            "thursday": "Open 24 hours",
+            "friday": "Open 24 hours",
+            "saturday": "Open 24 hours",
+            "sunday": "Open 24 hours",
+        },
+        "emergency": True,
+        "wheelchair": "yes",
+        "operator": "Avenue Healthcare",
+        "source": "AfyaLink",
+        "services": [
+            "Emergency Care",
+            "Outpatient Care",
+            "Inpatient Care",
+            "Laboratory",
+            "Pharmacy",
+            "Maternity",
+            "Radiology",
+            "Surgery",
+            "Pediatrics",
+        ],
+    },
 ]
 
 
@@ -442,7 +552,10 @@ def seed_services():
 # SEED FACILITIES
 # -------------------------------------------------------------------
 
-def seed_facilities(services):
+def seed_facilities(
+    services,
+    update_existing=True,
+):
     created = 0
     updated = 0
 
@@ -467,6 +580,9 @@ def seed_facilities(services):
             created += 1
 
         else:
+            if not update_existing:
+                continue
+
             for field, value in facility_data.items():
                 setattr(
                     facility,
@@ -491,7 +607,10 @@ def seed_facilities(services):
 # MAIN
 # -------------------------------------------------------------------
 
-def seed_database(if_empty=False):
+def seed_database(
+    if_empty=False,
+    add_missing=False,
+):
     with app.app_context():
 
         if if_empty and Facility.query.first() is not None:
@@ -509,7 +628,8 @@ def seed_database(if_empty=False):
         )
 
         created, updated = seed_facilities(
-            services
+            services,
+            update_existing=not add_missing,
         )
 
         print(
@@ -529,11 +649,20 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Seed the AfyaLink database."
     )
-    parser.add_argument(
+    seed_mode = parser.add_mutually_exclusive_group()
+    seed_mode.add_argument(
         "--if-empty",
         action="store_true",
         help="Seed only when no facilities exist.",
     )
+    seed_mode.add_argument(
+        "--add-missing",
+        action="store_true",
+        help="Add seed facilities that do not already exist.",
+    )
     arguments = parser.parse_args()
 
-    seed_database(if_empty=arguments.if_empty)
+    seed_database(
+        if_empty=arguments.if_empty,
+        add_missing=arguments.add_missing,
+    )
