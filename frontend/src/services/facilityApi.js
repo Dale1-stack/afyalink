@@ -1,5 +1,7 @@
-const API_URL =
-  import.meta.env.VITE_API_URL;
+const API_URL = (
+  import.meta.env.VITE_API_URL ||
+  "http://127.0.0.1:5000/api"
+).replace(/\/$/, "");
 
 
 async function request(
@@ -22,7 +24,10 @@ async function request(
   try {
     data = await response.json();
   } catch {
-    data = null;
+    throw new Error(
+      "The API returned an invalid response. " +
+      "Check that VITE_API_URL points to the backend."
+    );
   }
 
   if (!response.ok) {
@@ -41,7 +46,17 @@ async function request(
 // ---------------------------------------------------------
 
 export const getFacilities = async () => {
-  return request("/facilities/");
+  const facilities = await request(
+    "/facilities/"
+  );
+
+  if (!Array.isArray(facilities)) {
+    throw new Error(
+      "The API returned an invalid facilities list."
+    );
+  }
+
+  return facilities;
 };
 
 
