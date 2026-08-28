@@ -1,0 +1,7 @@
+                               List of roles
+   Role name   |                         Attributes                         
+---------------+------------------------------------------------------------
+ afyalink_user | 
+ postgres      | Superuser, Create role, Create DB, Replication, Bypass RLS
+ soko_user     | 
+

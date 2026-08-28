@@ -7,7 +7,7 @@ export const useFacilities = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const loadFacilities = async () => {
+    const loadFacilities = async () => {8
       try {
         setLoading(true);
 

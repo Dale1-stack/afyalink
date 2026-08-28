@@ -201,21 +201,7 @@ export default function Facilities() {
         );
 
 
-      /*
-       * ------------------------------------------------
-       * IMPORTANT
-       * ------------------------------------------------
-       *
-       * Keep the local facilities AND add OSM
-       * facilities.
-       *
-       * Previously you were doing:
-       *
-       * setFacilities(nearbyWithDistances)
-       *
-       * which removed all your local facilities.
-       */
-
+      
       setFacilities((currentFacilities) => {
 
         const combined = [
