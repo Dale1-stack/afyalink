@@ -1,3 +1,5 @@
+import argparse
+
 from app import create_app
 from app.extensions import db
 from app.models.facility import Facility
@@ -489,8 +491,12 @@ def seed_facilities(services):
 # MAIN
 # -------------------------------------------------------------------
 
-def seed_database():
+def seed_database(if_empty=False):
     with app.app_context():
+
+        if if_empty and Facility.query.first() is not None:
+            print("Database already contains facilities; skipping seed.")
+            return
 
         print(
             "\n🌱 Starting AfyaLink database seed...\n"
@@ -520,4 +526,14 @@ def seed_database():
 
 
 if __name__ == "__main__":
-    seed_database()
+    parser = argparse.ArgumentParser(
+        description="Seed the AfyaLink database."
+    )
+    parser.add_argument(
+        "--if-empty",
+        action="store_true",
+        help="Seed only when no facilities exist.",
+    )
+    arguments = parser.parse_args()
+
+    seed_database(if_empty=arguments.if_empty)
