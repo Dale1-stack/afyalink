@@ -5,11 +5,12 @@ from .extensions import db, migrate, cors
 
 from .models import Facility, Service, FacilityService
 from .routes.services import services_bp
-
+from .routes.facilities import facilities_bp
 
 def create_app():
     app = Flask(__name__)
     app.register_blueprint(services_bp)
+    app.register_blueprint(facilities_bp)
 
     app.config.from_object(Config)
 

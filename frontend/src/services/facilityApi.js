@@ -1,128 +1,226 @@
-import {
-  facilities as fallbackFacilities,
-} from "../data/facilities";
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "http://127.0.0.1:5000/api";
 
-import {
-  searchOpenStreetMapFacilities,
-} from "./openStreetMapApi";
 
-import {
-  normalizeFacilities,
-} from "./facilityNormalizer";
-
-export const getFacilities = async () => {
-  return fallbackFacilities;
-};
-
-export const getNearbyFacilities = async ({
-  latitude,
-  longitude,
-  radius = 10000,
-}) => {
-  try {
-    const response =
-      await searchOpenStreetMapFacilities({
-        latitude,
-        longitude,
-        radius,
-      });
-
-    return normalizeFacilities(
-      response.elements
-    );
-  } catch (error) {
-    console.error(
-      "OSM facility search failed:",
-      error
-    );
-
-    return [];
-  }
-};
-
-export const getFacilityById = async (id) => {
-  /*
-   * First check our local/sample facilities.
-   */
-  const localFacility =
-    fallbackFacilities.find(
-      (facility) =>
-        String(facility.id) === String(id)
-    );
-
-  if (localFacility) {
-    return localFacility;
-  }
-
-  /*
-   * Handle OpenStreetMap IDs.
-   *
-   * Example:
-   * osm-node-123456
-   * osm-way-123456
-   * osm-relation-123456
-   */
-  const osmMatch = String(id).match(
-    /^osm-(node|way|relation)-(\d+)$/
+async function request(
+  endpoint,
+  options = {}
+) {
+  const response = await fetch(
+    `${API_URL}${endpoint}`,
+    {
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+      ...options,
+    }
   );
 
-  if (!osmMatch) {
-    return null;
-  }
-
-  const [, osmType, osmId] = osmMatch;
-
-  const query = `
-    [out:json][timeout:25];
-
-    ${osmType}(${osmId});
-
-    out center tags;
-  `;
+  let data = null;
 
   try {
-    const response = await fetch(
-      "https://overpass-api.de/api/interpreter",
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      data?.error ||
+      `Request failed with status ${response.status}`
+    );
+  }
+
+  return data;
+}
+
+
+// ---------------------------------------------------------
+// FACILITIES
+// ---------------------------------------------------------
+
+export const getFacilities = async () => {
+  return request("/facilities/");
+};
+
+
+export const getFacilityById = async (
+  id
+) => {
+  return request(
+    `/facilities/${id}`
+  );
+};
+
+
+export const createFacility = async (
+  facility
+) => {
+  return request(
+    "/facilities/",
+    {
+      method: "POST",
+      body: JSON.stringify(facility),
+    }
+  );
+};
+
+
+export const updateFacility = async (
+  id,
+  facility
+) => {
+  return request(
+    `/facilities/${id}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(facility),
+    }
+  );
+};
+
+
+export const deleteFacility = async (
+  id
+) => {
+  return request(
+    `/facilities/${id}`,
+    {
+      method: "DELETE",
+    }
+  );
+};
+
+
+// ---------------------------------------------------------
+// SERVICES
+// ---------------------------------------------------------
+
+export const getServices = async () => {
+  return request(
+    "/services/"
+  );
+};
+
+
+export const createService = async (
+  service
+) => {
+  return request(
+    "/services/",
+    {
+      method: "POST",
+      body: JSON.stringify(service),
+    }
+  );
+};
+
+
+export const updateService = async (
+  id,
+  service
+) => {
+  return request(
+    `/services/${id}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(service),
+    }
+  );
+};
+
+
+export const deleteService = async (
+  id
+) => {
+  return request(
+    `/services/${id}`,
+    {
+      method: "DELETE",
+    }
+  );
+};
+
+
+// ---------------------------------------------------------
+// FACILITY ↔ SERVICE
+// ---------------------------------------------------------
+
+export const addServiceToFacility = async (
+  facilityId,
+  serviceId
+) => {
+  return request(
+    `/facilities/${facilityId}/services`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        service_id: serviceId,
+      }),
+    }
+  );
+};
+
+
+export const removeServiceFromFacility =
+  async (
+    facilityId,
+    serviceId
+  ) => {
+    return request(
+      `/facilities/${facilityId}/services/${serviceId}`,
       {
-        method: "POST",
-        headers: {
-          "Content-Type":
-            "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          data: query,
-        }),
+        method: "DELETE",
       }
     );
+  };
 
-    if (!response.ok) {
-      throw new Error(
-        `Overpass request failed: ${response.status}`
+
+// ---------------------------------------------------------
+// OSM — KEEP FOR NEARBY SEARCH
+// ---------------------------------------------------------
+
+export const getNearbyFacilities =
+  async ({
+    latitude,
+    longitude,
+    radius = 10000,
+  }) => {
+
+    const {
+      searchOpenStreetMapFacilities,
+    } = await import(
+      "./openStreetMapApi"
+    );
+
+    const {
+      normalizeFacilities,
+    } = await import(
+      "./facilityNormalizer"
+    );
+
+    try {
+
+      const response =
+        await searchOpenStreetMapFacilities({
+          latitude,
+          longitude,
+          radius,
+        });
+
+      return normalizeFacilities(
+        response.elements
       );
+
+    } catch (error) {
+
+      console.error(
+        "OSM facility search failed:",
+        error
+      );
+
+      return [];
     }
-
-    const data =
-      await response.json();
-
-    const normalized =
-      normalizeFacilities(
-        data.elements
-      );
-
-    return (
-      normalized.find(
-        (facility) =>
-          String(facility.osmId) ===
-            String(osmId) &&
-          facility.osmType === osmType
-      ) || null
-    );
-  } catch (error) {
-    console.error(
-      "Failed to retrieve OSM facility:",
-      error
-    );
-
-    return null;
-  }
-};
+  };

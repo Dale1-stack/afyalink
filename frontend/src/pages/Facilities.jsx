@@ -1,183 +1,223 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useEffect, useMemo, useState } from "react";
+import { MapPin, Loader2, RefreshCw } from "lucide-react";
 
 import SearchBar from "../components/SearchBar";
 import FacilityList from "../components/FacilityList";
+
 import { useFacilities } from "../hooks/useFacilities";
-
-import {
-  MapPin,
-  Loader2,
-} from "lucide-react";
-
 import { useLocation } from "../hooks/useLocation";
 
 import {
   getNearbyFacilities,
 } from "../services/facilityApi";
 
-import {
-  addDistances,
-} from "../utils/distance";
+import { addDistances } from "../utils/distance";
 
+/*
+|--------------------------------------------------------------------------
+| Normalize services
+|--------------------------------------------------------------------------
+| Flask now returns service objects:
+|
+| {
+|   id: 1,
+|   name: "Emergency",
+|   description: "Emergency medical services"
+| }
+|
+| Older local data may still contain:
+|
+| ["Emergency", "Laboratory"]
+|
+| This function supports BOTH formats.
+|--------------------------------------------------------------------------
+*/
+
+const normalizeServices = (services) => {
+  if (!Array.isArray(services)) {
+    return [];
+  }
+
+  return services
+    .map((service) => {
+      if (typeof service === "string") {
+        return service;
+      }
+
+      if (service && typeof service === "object") {
+        return service.name || "";
+      }
+
+      return "";
+    })
+    .filter(Boolean);
+};
+
+/*
+|--------------------------------------------------------------------------
+| Normalize opening hours
+|--------------------------------------------------------------------------
+*/
+
+const normalizeOpeningHours = (openingHours) => {
+  if (!openingHours) {
+    return {};
+  }
+
+  // If Flask/database returns an object
+  if (
+    typeof openingHours === "object" &&
+    !Array.isArray(openingHours)
+  ) {
+    return openingHours;
+  }
+
+  // If old local data contains a string such as "24 hours"
+  if (typeof openingHours === "string") {
+    return {
+      monday: openingHours,
+      tuesday: openingHours,
+      wednesday: openingHours,
+      thursday: openingHours,
+      friday: openingHours,
+      saturday: openingHours,
+      sunday: openingHours,
+    };
+  }
+
+  return {};
+};
+
+/*
+|--------------------------------------------------------------------------
+| Normalize a facility returned from Flask or local data
+|--------------------------------------------------------------------------
+*/
+
+const normalizeFacility = (facility) => {
+  if (!facility) {
+    return null;
+  }
+
+  return {
+    ...facility,
+
+    services: normalizeServices(facility.services),
+
+    openingHours: normalizeOpeningHours(
+      facility.openingHours || facility.opening_hours
+    ),
+  };
+};
 
 export default function Facilities() {
-  /*
-   * --------------------------------------------------
-   * LOCAL FACILITIES
-   * --------------------------------------------------
-   */
-
   const {
     facilities: initialFacilities,
     loading,
     error,
   } = useFacilities();
 
-
-  /*
-   * This is the facilities actually displayed
-   * on the page.
-   */
-  const [facilities, setFacilities] =
-    useState([]);
-
-
-  /*
-   * Load the local facilities when they become
-   * available.
-   */
-  useEffect(() => {
-    if (initialFacilities?.length) {
-      setFacilities(initialFacilities);
-    }
-  }, [initialFacilities]);
-
-
-  /*
-   * --------------------------------------------------
-   * SEARCH / FILTER STATE
-   * --------------------------------------------------
-   */
-
-  const [query, setQuery] =
-    useState("");
-
-  const [service, setService] =
-    useState("");
-
-  const [nearbyMode, setNearbyMode] =
-    useState(false);
-
-
-  /*
-   * --------------------------------------------------
-   * LOCATION
-   * --------------------------------------------------
-   */
+  const [facilities, setFacilities] = useState([]);
+  const [query, setQuery] = useState("");
+  const [service, setService] = useState("");
+  const [nearbyMode, setNearbyMode] = useState(false);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
+  const [nearbyError, setNearbyError] = useState(null);
 
   const {
+    location,
     loading: locationLoading,
     error: locationError,
     requestLocation,
   } = useLocation();
 
+  /*
+  |--------------------------------------------------------------------------
+  | Load facilities returned from Flask
+  |--------------------------------------------------------------------------
+  */
+
+  useEffect(() => {
+    if (!Array.isArray(initialFacilities)) {
+      setFacilities([]);
+      return;
+    }
+
+    const normalized = initialFacilities
+      .map(normalizeFacility)
+      .filter(Boolean);
+
+    setFacilities(normalized);
+  }, [initialFacilities]);
 
   /*
-   * --------------------------------------------------
-   * SERVICE FILTER OPTIONS
-   * --------------------------------------------------
-   *
-   * Build the service dropdown dynamically from
-   * the facilities currently loaded.
-   */
+  |--------------------------------------------------------------------------
+  | Get unique services
+  |--------------------------------------------------------------------------
+  */
 
   const services = useMemo(() => {
     return [
       ...new Set(
         facilities.flatMap(
-          (facility) =>
-            Array.isArray(facility.services)
-              ? facility.services
-              : []
+          (facility) => facility.services || []
         )
       ),
-    ].sort();
+    ].sort((a, b) =>
+      a.localeCompare(b)
+    );
   }, [facilities]);
 
-
   /*
-   * --------------------------------------------------
-   * SEARCH + FILTER
-   * --------------------------------------------------
-   */
+  |--------------------------------------------------------------------------
+  | Search + filter
+  |--------------------------------------------------------------------------
+  */
 
-  const filteredFacilities =
-    useMemo(() => {
-      return facilities.filter(
-        (facility) => {
+  const filteredFacilities = useMemo(() => {
+    return facilities.filter((facility) => {
+      const searchTerm = query
+        .trim()
+        .toLowerCase();
 
-          const name =
-            facility.name || "";
+      const matchesQuery =
+        !searchTerm ||
+        String(facility.name || "")
+          .toLowerCase()
+          .includes(searchTerm) ||
+        String(facility.address || "")
+          .toLowerCase()
+          .includes(searchTerm) ||
+        String(facility.county || "")
+          .toLowerCase()
+          .includes(searchTerm);
 
-          const address =
-            facility.address || "";
+      const matchesService =
+        !service ||
+        (facility.services || []).includes(
+          service
+        );
 
-          const facilityServices =
-            Array.isArray(facility.services)
-              ? facility.services
-              : [];
-
-
-          const matchesQuery =
-            !query ||
-            name
-              .toLowerCase()
-              .includes(
-                query.toLowerCase()
-              ) ||
-            address
-              .toLowerCase()
-              .includes(
-                query.toLowerCase()
-              );
-
-
-          const matchesService =
-            !service ||
-            facilityServices.includes(
-              service
-            );
-
-
-          return (
-            matchesQuery &&
-            matchesService
-          );
-        }
+      return (
+        matchesQuery &&
+        matchesService
       );
-    }, [
-      facilities,
-      query,
-      service,
-    ]);
-
+    });
+  }, [facilities, query, service]);
 
   /*
-   * --------------------------------------------------
-   * FIND NEARBY FACILITIES
-   * --------------------------------------------------
-   */
+  |--------------------------------------------------------------------------
+  | Find nearby facilities using OSM
+  |--------------------------------------------------------------------------
+  */
 
   const findNearby = async () => {
     try {
+      setNearbyLoading(true);
+      setNearbyError(null);
 
       const currentLocation =
         await requestLocation();
-
 
       const nearby =
         await getNearbyFacilities({
@@ -190,138 +230,116 @@ export default function Facilities() {
           radius: 10000,
         });
 
+      const normalized = Array.isArray(
+        nearby
+      )
+        ? nearby
+            .map(normalizeFacility)
+            .filter(Boolean)
+        : [];
 
-      /*
-       * Add distances to OSM facilities.
-       */
-      const nearbyWithDistances =
+      const facilitiesWithDistances =
         addDistances(
-          nearby,
+          normalized,
           currentLocation
         );
 
-
-      
-      setFacilities((currentFacilities) => {
-
-        const combined = [
-          ...currentFacilities,
-          ...nearbyWithDistances,
-        ];
-
-
-        /*
-         * Remove duplicate facilities.
-         *
-         * OSM facilities have IDs such as:
-         *
-         * osm-node-123456
-         *
-         * Local facilities have IDs such as:
-         *
-         * 1
-         * 2
-         * 3
-         */
-
-        const uniqueFacilities =
-          combined.filter(
-            (facility, index, array) => {
-
-              const facilityId =
-                String(
-                  facility.id
-                );
-
-              return (
-                array.findIndex(
-                  (item) =>
-                    String(item.id) ===
-                    facilityId
-                ) === index
-              );
-            }
-          );
-
-
-        return uniqueFacilities;
-      });
-
-
-      setNearbyMode(true);
-
-    } catch (error) {
-
-      console.error(
-        "Unable to find nearby facilities:",
-        error
+      setFacilities(
+        facilitiesWithDistances
       );
 
+      setNearbyMode(true);
+    } catch (err) {
+      console.error(
+        "Failed to find nearby facilities:",
+        err
+      );
+
+      setNearbyError(
+        err?.message ||
+          "Unable to find nearby healthcare facilities."
+      );
+    } finally {
+      setNearbyLoading(false);
     }
   };
 
-
   /*
-   * --------------------------------------------------
-   * RESET TO LOCAL FACILITIES
-   * --------------------------------------------------
-   */
+  |--------------------------------------------------------------------------
+  | Return to all facilities from Flask
+  |--------------------------------------------------------------------------
+  */
 
-  const resetFacilities = () => {
-    setFacilities(
-      initialFacilities || []
-    );
+  const showAllFacilities = () => {
+    const normalized =
+      Array.isArray(initialFacilities)
+        ? initialFacilities
+            .map(normalizeFacility)
+            .filter(Boolean)
+        : [];
 
+    setFacilities(normalized);
     setNearbyMode(false);
+    setNearbyError(null);
     setQuery("");
     setService("");
   };
 
-
   /*
-   * --------------------------------------------------
-   * UI
-   * --------------------------------------------------
-   */
+  |--------------------------------------------------------------------------
+  | Loading state
+  |--------------------------------------------------------------------------
+  */
+
+  if (loading) {
+    return (
+      <main className="mx-auto max-w-7xl px-6 py-16">
+        <div className="flex min-h-[300px] items-center justify-center">
+          <div className="text-center">
+            <Loader2
+              size={36}
+              className="mx-auto mb-4 animate-spin text-blue-600"
+            />
+
+            <p className="text-slate-600">
+              Loading healthcare facilities...
+            </p>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-12">
-
-      {/* --------------------------------------------- */}
-      {/* PAGE HEADER                                   */}
-      {/* --------------------------------------------- */}
+      {/* HEADER */}
 
       <div className="mb-10">
-
-        <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-
+        <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
           <div>
-
             <h1 className="text-3xl font-bold text-slate-900">
-              Healthcare facilities
+              Healthcare Facilities
             </h1>
 
             <p className="mt-2 text-slate-500">
-              Search and discover healthcare facilities
-              near you.
+              Find hospitals, pharmacies,
+              laboratories and other healthcare
+              services.
             </p>
-
           </div>
 
-
-          {/* ----------------------------------------- */}
-          {/* LOCATION BUTTONS                          */}
-          {/* ----------------------------------------- */}
-
           <div className="flex flex-wrap gap-3">
-
             <button
+              type="button"
               onClick={findNearby}
-              disabled={locationLoading}
-              className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={
+                locationLoading ||
+                nearbyLoading
+              }
+              className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-
-              {locationLoading ? (
+              {locationLoading ||
+              nearbyLoading ? (
                 <>
                   <Loader2
                     size={18}
@@ -337,27 +355,31 @@ export default function Facilities() {
                   Find near me
                 </>
               )}
-
             </button>
-
 
             {nearbyMode && (
               <button
-                onClick={resetFacilities}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
+                type="button"
+                onClick={
+                  showAllFacilities
+                }
+                className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
               >
-                Show all facilities
+                <RefreshCw size={17} />
+
+                Show all
               </button>
             )}
-
           </div>
-
         </div>
 
-
-        {/* ------------------------------------------- */}
-        {/* LOCATION ERROR                              */}
-        {/* ------------------------------------------- */}
+        {nearbyMode && (
+          <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">
+            Showing healthcare facilities
+            within approximately 10 km of your
+            current location.
+          </div>
+        )}
 
         {locationError && (
           <div className="mt-5 rounded-xl bg-red-50 p-4 text-sm text-red-700">
@@ -365,55 +387,37 @@ export default function Facilities() {
           </div>
         )}
 
-      </div>
-
-
-      {/* --------------------------------------------- */}
-      {/* DATA SOURCE INFORMATION                       */}
-      {/* --------------------------------------------- */}
-
-      <div className="mb-6 flex flex-wrap items-center gap-3">
-
-        <div className="rounded-full bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700">
-          {facilities.length} facilities loaded
-        </div>
-
-
-        {nearbyMode && (
-          <div className="rounded-full bg-green-50 px-4 py-2 text-sm font-medium text-green-700">
-            Including nearby OpenStreetMap facilities
+        {nearbyError && (
+          <div className="mt-5 rounded-xl bg-red-50 p-4 text-sm text-red-700">
+            {nearbyError}
           </div>
         )}
 
+        {error && (
+          <div className="mt-5 rounded-xl bg-red-50 p-4 text-sm text-red-700">
+            {error}
+          </div>
+        )}
       </div>
 
+      {/* SEARCH + FILTER */}
 
-      {/* --------------------------------------------- */}
-      {/* SEARCH + SERVICE FILTER                      */}
-      {/* --------------------------------------------- */}
-
-      <div className="mb-8 grid gap-4 md:grid-cols-[1fr_240px]">
-
+      <div className="mb-8 grid gap-4 md:grid-cols-[1fr_260px]">
         <SearchBar
           value={query}
           onChange={setQuery}
         />
 
-
         <select
           value={service}
           onChange={(event) =>
-            setService(
-              event.target.value
-            )
+            setService(event.target.value)
           }
-          className="rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-blue-500"
+          className="rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
         >
-
           <option value="">
             All services
           </option>
-
 
           {services.map((item) => (
             <option
@@ -423,114 +427,54 @@ export default function Facilities() {
               {item}
             </option>
           ))}
-
         </select>
-
       </div>
 
+      {/* RESULTS SUMMARY */}
 
-      {/* --------------------------------------------- */}
-      {/* ERROR                                        */}
-      {/* --------------------------------------------- */}
+      <div className="mb-6 flex items-center justify-between">
+        <p className="text-sm text-slate-500">
+          Showing{" "}
+          <span className="font-semibold text-slate-800">
+            {filteredFacilities.length}
+          </span>{" "}
+          facilities
+        </p>
 
-      {error && (
-        <div className="mb-6 rounded-xl bg-red-50 p-4 text-red-700">
-          {error}
-        </div>
-      )}
+        {service && (
+          <button
+            type="button"
+            onClick={() => setService("")}
+            className="text-sm font-medium text-blue-600 hover:underline"
+          >
+            Clear filter
+          </button>
+        )}
+      </div>
 
+      {/* FACILITIES */}
 
-      {/* --------------------------------------------- */}
-      {/* LOADING                                      */}
-      {/* --------------------------------------------- */}
-
-      {loading ? (
-
-        <div className="py-20 text-center">
-
-          <Loader2
-            size={30}
-            className="mx-auto mb-4 animate-spin text-blue-600"
+      {filteredFacilities.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-16 text-center">
+          <MapPin
+            size={40}
+            className="mx-auto mb-4 text-slate-400"
           />
 
-          <p className="text-slate-500">
-            Loading healthcare facilities...
+          <h2 className="text-lg font-semibold text-slate-800">
+            No facilities found
+          </h2>
+
+          <p className="mt-2 text-sm text-slate-500">
+            Try changing your search or
+            service filter.
           </p>
-
         </div>
-
       ) : (
-
-        <>
-
-          {/* ----------------------------------------- */}
-          {/* SEARCH RESULT COUNT                       */}
-          {/* ----------------------------------------- */}
-
-          <div className="mb-5 text-sm text-slate-500">
-
-            Showing{" "}
-
-            <span className="font-semibold text-slate-900">
-              {filteredFacilities.length}
-            </span>
-
-            {" "}of{" "}
-
-            <span className="font-semibold text-slate-900">
-              {facilities.length}
-            </span>
-
-            {" "}facilities
-
-          </div>
-
-
-          {/* ----------------------------------------- */}
-          {/* FACILITY LIST                             */}
-          {/* ----------------------------------------- */}
-
-          {filteredFacilities.length > 0 ? (
-
-            <FacilityList
-              facilities={
-                filteredFacilities
-              }
-            />
-
-          ) : (
-
-            <div className="rounded-2xl border border-slate-200 bg-white px-6 py-16 text-center">
-
-              <MapPin
-                size={40}
-                className="mx-auto mb-4 text-slate-300"
-              />
-
-              <h2 className="text-lg font-semibold text-slate-900">
-                No facilities found
-              </h2>
-
-              <p className="mt-2 text-sm text-slate-500">
-                Try changing your search or
-                service filter.
-              </p>
-
-              <button
-                onClick={resetFacilities}
-                className="mt-5 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
-              >
-                Show all facilities
-              </button>
-
-            </div>
-
-          )}
-
-        </>
-
+        <FacilityList
+          facilities={filteredFacilities}
+        />
       )}
-
     </main>
   );
 }
