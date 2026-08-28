@@ -11,6 +11,7 @@ import Facilities from "./pages/Facilities";
 import FacilityDetails from "./pages/FacilityDetails";
 import Services from "./pages/Services";
 import Map from "./pages/Map";
+import Manage from "./pages/Manage";
 import Footer from "./components/Footer";
 
 function About() {
@@ -63,6 +64,11 @@ export default function App() {
         <Route
           path="/about"
           element={<About />}
+        />
+
+        <Route
+          path="/manage"
+          element={<Manage />}
         />
       </Routes>
 

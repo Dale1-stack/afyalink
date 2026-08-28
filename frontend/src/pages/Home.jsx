@@ -9,6 +9,7 @@ import SearchBar from "../components/SearchBar";
 import FacilityCard from "../components/FacilityCard";
 import { useFacilities } from "../hooks/useFacilities";
 import { useState } from "react";
+import doctorHero from "../assets/doctor-hero.webp";
 
 export default function Home() {
   const [query, setQuery] = useState("");
@@ -30,8 +31,15 @@ export default function Home() {
 
   return (
     <main>
-      <section className="bg-gradient-to-br from-blue-700 via-blue-600 to-cyan-600">
-        <div className="mx-auto max-w-7xl px-6 py-20 md:py-28">
+      <section
+        className="relative overflow-hidden bg-cover bg-center"
+        style={{
+          backgroundImage: `url(${doctorHero})`,
+        }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-950/90 via-blue-800/75 to-cyan-700/55" />
+
+        <div className="relative z-10 mx-auto max-w-7xl px-6 py-20 md:py-28">
           <div className="max-w-3xl">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm text-white backdrop-blur">
               <Hospital size={17} />

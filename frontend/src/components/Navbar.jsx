@@ -43,6 +43,13 @@ export default function Navbar() {
           >
             About
           </Link>
+
+          <Link
+            to="/manage"
+            className="text-slate-600 hover:text-blue-700"
+          >
+            Manage
+          </Link>
         </div>
       </div>
     </nav>
