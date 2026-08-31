@@ -1,7 +1,17 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { HeartPulse, MapPin } from "lucide-react";
 
+import { useAuth } from "../context/AuthContext";
+
 export default function Navbar() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/");
+  };
+
   return (
     <nav className="border-b bg-white">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
@@ -44,12 +54,18 @@ export default function Navbar() {
             About
           </Link>
 
-          <Link
-            to="/manage"
-            className="text-slate-600 hover:text-blue-700"
-          >
-            Manage
-          </Link>
+          {user ? (
+            <>
+              <Link to="/manage" className="text-slate-600 hover:text-blue-700">Manage</Link>
+              <span className="max-w-40 truncate text-sm text-slate-500" title={user.email}>{user.email}</span>
+              <button type="button" onClick={handleLogout} className="text-slate-600 hover:text-blue-700">Log out</button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" className="text-slate-600 hover:text-blue-700">Log in</Link>
+              <Link to="/register" className="rounded-lg bg-blue-600 px-3 py-2 text-white hover:bg-blue-700">Register</Link>
+            </>
+          )}
         </div>
       </div>
     </nav>

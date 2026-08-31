@@ -12,6 +12,13 @@ class Facility(db.Model):
         primary_key=True
     )
 
+    owner_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+
     name = db.Column(
         db.String(200),
         nullable=False
@@ -96,6 +103,8 @@ class Facility(db.Model):
         secondary="facility_services",
         back_populates="facilities"
     )
+
+    owner = db.relationship("User", back_populates="facilities")
 
     def to_dict(self):
         return {

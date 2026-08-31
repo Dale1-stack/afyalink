@@ -5,6 +5,8 @@ import {
 } from "react-router-dom";
 
 import Navbar from "./components/Navbar";
+import RequireAuth from "./components/RequireAuth";
+import { AuthProvider } from "./context/AuthContext";
 
 import Home from "./pages/Home";
 import Facilities from "./pages/Facilities";
@@ -12,6 +14,7 @@ import FacilityDetails from "./pages/FacilityDetails";
 import Services from "./pages/Services";
 import Map from "./pages/Map";
 import Manage from "./pages/Manage";
+import Auth from "./pages/Auth";
 import Footer from "./components/Footer";
 
 function About() {
@@ -32,8 +35,9 @@ function About() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Navbar />
+    <AuthProvider>
+      <BrowserRouter>
+        <Navbar />
 
       <Routes>
         <Route
@@ -68,11 +72,14 @@ export default function App() {
 
         <Route
           path="/manage"
-          element={<Manage />}
+          element={<RequireAuth><Manage /></RequireAuth>}
         />
+        <Route path="/login" element={<Auth mode="login" />} />
+        <Route path="/register" element={<Auth mode="register" />} />
       </Routes>
 
       <Footer />
-    </BrowserRouter>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }

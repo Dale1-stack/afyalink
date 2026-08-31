@@ -1,6 +1,7 @@
 import {
   calculateDistance,
 } from "../utils/distance";
+import { getAccessToken } from "./authApi";
 
 const API_URL = (
   import.meta.env.VITE_API_URL ||
@@ -12,11 +13,13 @@ async function request(
   endpoint,
   options = {}
 ) {
+  const accessToken = getAccessToken();
   const response = await fetch(
     `${API_URL}${endpoint}`,
     {
       headers: {
         "Content-Type": "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         ...options.headers,
       },
       ...options,
@@ -72,6 +75,14 @@ export const getFacilityById = async (
   );
 };
 
+export const getMyFacilities = async () => {
+  const facilities = await request("/facilities/mine");
+  if (!Array.isArray(facilities)) {
+    throw new Error("The API returned an invalid facilities list.");
+  }
+  return facilities;
+};
+
 
 export const createFacility = async (
   facility
@@ -120,6 +131,14 @@ export const getServices = async () => {
   return request(
     "/services/"
   );
+};
+
+export const getMyServices = async () => {
+  const services = await request("/services/mine");
+  if (!Array.isArray(services)) {
+    throw new Error("The API returned an invalid services list.");
+  }
+  return services;
 };
 
 

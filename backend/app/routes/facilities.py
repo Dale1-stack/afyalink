@@ -5,6 +5,7 @@ from urllib.request import Request, urlopen
 
 from flask import Blueprint, jsonify, request
 
+from app.auth import current_user, require_auth, require_ownership
 from app.extensions import db
 from app.models import Facility, Service
 
@@ -266,6 +267,16 @@ def get_facilities():
     ]), 200
 
 
+@facilities_bp.get("/mine")
+@require_auth
+def get_my_facilities():
+    facilities = Facility.query.filter_by(
+        owner_id=current_user().id
+    ).order_by(Facility.name.asc()).all()
+
+    return jsonify([facility.to_dict() for facility in facilities]), 200
+
+
 # ---------------------------------------------------------
 # GET SINGLE FACILITY
 # ---------------------------------------------------------
@@ -293,6 +304,7 @@ def get_facility(facility_id):
 # ---------------------------------------------------------
 
 @facilities_bp.post("/")
+@require_auth
 def create_facility():
 
     data = request.get_json(silent=True)
@@ -306,7 +318,8 @@ def create_facility():
 
     existing = Facility.query.filter(
         db.func.lower(Facility.name)
-        == cleaned["name"].lower()
+        == cleaned["name"].lower(),
+        Facility.owner_id == current_user().id,
     ).first()
 
     if existing:
@@ -315,7 +328,8 @@ def create_facility():
         }), 409
 
     facility = Facility(
-        **cleaned
+        **cleaned,
+        owner_id=current_user().id,
     )
 
     try:
@@ -342,6 +356,7 @@ def create_facility():
 # ---------------------------------------------------------
 
 @facilities_bp.put("/<int:facility_id>")
+@require_auth
 def update_facility(facility_id):
 
     facility = db.session.get(
@@ -353,6 +368,10 @@ def update_facility(facility_id):
         return jsonify({
             "error": "Facility not found"
         }), 404
+
+    ownership_error = require_ownership(facility)
+    if ownership_error:
+        return ownership_error
 
     data = request.get_json(silent=True)
 
@@ -369,7 +388,8 @@ def update_facility(facility_id):
         duplicate = Facility.query.filter(
             db.func.lower(Facility.name)
             == cleaned["name"].lower(),
-            Facility.id != facility_id
+            Facility.id != facility_id,
+            Facility.owner_id == current_user().id,
         ).first()
 
         if duplicate:
@@ -410,6 +430,7 @@ def update_facility(facility_id):
 # ---------------------------------------------------------
 
 @facilities_bp.delete("/<int:facility_id>")
+@require_auth
 def delete_facility(facility_id):
 
     facility = db.session.get(
@@ -421,6 +442,10 @@ def delete_facility(facility_id):
         return jsonify({
             "error": "Facility not found"
         }), 404
+
+    ownership_error = require_ownership(facility)
+    if ownership_error:
+        return ownership_error
 
     try:
 
@@ -448,6 +473,7 @@ def delete_facility(facility_id):
 @facilities_bp.post(
     "/<int:facility_id>/services"
 )
+@require_auth
 def add_service_to_facility(facility_id):
 
     facility = db.session.get(
@@ -459,6 +485,10 @@ def add_service_to_facility(facility_id):
         return jsonify({
             "error": "Facility not found"
         }), 404
+
+    ownership_error = require_ownership(facility)
+    if ownership_error:
+        return ownership_error
 
     data = request.get_json(silent=True)
 
@@ -485,6 +515,10 @@ def add_service_to_facility(facility_id):
         return jsonify({
             "error": "Service not found"
         }), 404
+
+    ownership_error = require_ownership(service)
+    if ownership_error:
+        return ownership_error
 
     if service in facility.services:
         return jsonify({
@@ -518,6 +552,7 @@ def add_service_to_facility(facility_id):
 @facilities_bp.delete(
     "/<int:facility_id>/services/<int:service_id>"
 )
+@require_auth
 def remove_service_from_facility(
     facility_id,
     service_id
@@ -533,6 +568,10 @@ def remove_service_from_facility(
             "error": "Facility not found"
         }), 404
 
+    ownership_error = require_ownership(facility)
+    if ownership_error:
+        return ownership_error
+
     service = db.session.get(
         Service,
         service_id
@@ -542,6 +581,10 @@ def remove_service_from_facility(
         return jsonify({
             "error": "Service not found"
         }), 404
+
+    ownership_error = require_ownership(service)
+    if ownership_error:
+        return ownership_error
 
     if service not in facility.services:
         return jsonify({

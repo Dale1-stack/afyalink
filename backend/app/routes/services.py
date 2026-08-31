@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 
+from app.auth import current_user, require_auth, require_ownership
 from app.extensions import db
 from app.models import Service
 
@@ -27,6 +28,15 @@ def get_services():
     ]), 200
 
 
+@services_bp.get("/mine")
+@require_auth
+def get_my_services():
+    services = Service.query.filter_by(
+        owner_id=current_user().id
+    ).order_by(Service.name.asc()).all()
+    return jsonify([service.to_dict() for service in services]), 200
+
+
 @services_bp.get("/<int:service_id>")
 def get_service(service_id):
     """
@@ -49,6 +59,7 @@ def get_service(service_id):
 
 
 @services_bp.post("/")
+@require_auth
 def create_service():
     """
     Create a new healthcare service.
@@ -76,7 +87,8 @@ def create_service():
         }), 400
 
     existing_service = Service.query.filter(
-        db.func.lower(Service.name) == name.lower()
+        db.func.lower(Service.name) == name.lower(),
+        Service.owner_id == current_user().id,
     ).first()
 
     if existing_service:
@@ -86,7 +98,8 @@ def create_service():
 
     service = Service(
         name=name,
-        description=data.get("description")
+        description=data.get("description"),
+        owner_id=current_user().id,
     )
 
     try:
@@ -107,6 +120,7 @@ def create_service():
 
 
 @services_bp.put("/<int:service_id>")
+@require_auth
 def update_service(service_id):
     """
     Update an existing healthcare service.
@@ -121,6 +135,10 @@ def update_service(service_id):
         return jsonify({
             "error": "Service not found"
         }), 404
+
+    ownership_error = require_ownership(service)
+    if ownership_error:
+        return ownership_error
 
     data = request.get_json(silent=True)
 
@@ -147,7 +165,8 @@ def update_service(service_id):
 
         duplicate = Service.query.filter(
             db.func.lower(Service.name) == name.lower(),
-            Service.id != service_id
+            Service.id != service_id,
+            Service.owner_id == current_user().id,
         ).first()
 
         if duplicate:
@@ -177,6 +196,7 @@ def update_service(service_id):
 
 
 @services_bp.delete("/<int:service_id>")
+@require_auth
 def delete_service(service_id):
     """
     Delete a healthcare service.
@@ -191,6 +211,10 @@ def delete_service(service_id):
         return jsonify({
             "error": "Service not found"
         }), 404
+
+    ownership_error = require_ownership(service)
+    if ownership_error:
+        return ownership_error
 
     try:
         db.session.delete(service)

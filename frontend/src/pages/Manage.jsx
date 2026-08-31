@@ -13,8 +13,8 @@ import {
   createService,
   deleteFacility,
   deleteService,
-  getFacilities,
-  getServices,
+  getMyFacilities,
+  getMyServices,
   removeServiceFromFacility,
   updateFacility,
   updateService,
@@ -81,8 +81,8 @@ export default function Manage() {
       setLoading(true);
       setError("");
       const [facilityData, serviceData] = await Promise.all([
-        getFacilities(),
-        getServices(),
+        getMyFacilities(),
+        getMyServices(),
       ]);
       setFacilities(facilityData);
       setServices(serviceData);
@@ -227,7 +227,7 @@ export default function Manage() {
     <main className="mx-auto max-w-7xl px-6 py-12">
       <div className="max-w-3xl">
         <h1 className="text-3xl font-bold">Manage AfyaLink data</h1>
-        <p className="mt-2 text-slate-500">Create, update, and remove facilities and healthcare services.</p>
+        <p className="mt-2 text-slate-500">Create, update, and remove only the facilities and healthcare services you own.</p>
       </div>
 
       {error && <p className="mt-6 rounded-xl bg-red-50 p-4 text-red-700">{error}</p>}

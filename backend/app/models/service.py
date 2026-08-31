@@ -11,10 +11,17 @@ class Service(db.Model):
         primary_key=True
     )
 
+    owner_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+
     name = db.Column(
         db.String(100),
         nullable=False,
-        unique=True
+        unique=False
     )
 
     description = db.Column(
@@ -40,6 +47,8 @@ class Service(db.Model):
         secondary="facility_services",
         back_populates="services"
     )
+
+    owner = db.relationship("User", back_populates="services")
 
     def to_dict(self):
         return {
